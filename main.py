@@ -1,6 +1,5 @@
 from skimage import io, draw
 import math
-import matplotlib.pyplot as plt
 import numpy as np
 
 scans_count = 90
@@ -49,13 +48,39 @@ for step in range(scans_count):
     for i in range(detectors_count):
         sinogram[step][i] /= scan_max
 
+io.imsave('sinogram.jpg', np.array(sinogram))
 
-io.imsave('test.jpg', np.array(sinogram))
+output_img = np.zeros(img.shape)
+
+global_max = 0
+
+for step in range(scans_count):
+    angle = step * angle_step
+    emitter_loc_x = int(radius * math.cos(angle))
+    emitter_loc_x += center[0]
+    emitter_loc_y = int(radius * math.sin(angle))
+    emitter_loc_y = center[1] - emitter_loc_y
+    emitter_loc = (emitter_loc_x, emitter_loc_y)
+
+    detector_locs = []
+    scan_max = 0
+    for i in range(detectors_count):
+        detector_loc_x = int(radius * math.cos(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
+        detector_loc_x += center[0]
+        detector_loc_y = int(radius * math.sin(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
+        detector_loc_y = center[1] - detector_loc_y
+        detector_loc = (detector_loc_x, detector_loc_y)
+        detector_locs.append(detector_loc)
+
+        line_nd = draw.line_nd(emitter_loc, detector_loc, endpoint=True)
+        value = sinogram[step][i]
+        for j in range(len(line_nd[0])):
+            output_img[line_nd[0][j]][line_nd[1][j]] += value
+            global_max = max(output_img[line_nd[0][j]][line_nd[1][j]], global_max)
+
+for i in range(output_img.shape[0]):
+    for j in range(output_img.shape[1]):
+        output_img[i][j] /= global_max
 
 
-
-
-
-
-
-# draw.line_nd((0,0), (10, 3), endpoint=True)
+io.imsave('output.jpg', output_img)
