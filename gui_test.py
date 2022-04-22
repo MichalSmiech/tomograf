@@ -17,12 +17,24 @@ file_types = [("JPEG (*.jpg)", "*.jpg"),
 def main():
     scanner = Scanner()
     layout = [
-        [sg.Text("Obraz wejściowy")],
-        [sg.Image(key="-INPUT_IMG-")],
-        [sg.Text("Sinogram")],
-        [sg.Image(key="-SINOGRAM-")],
-        [sg.Text("Obraz wyjściowy")],
-        [sg.Image(key="-OUTPUT_IMG-")],
+        [sg.Column(
+            [
+                [sg.Text("Obraz wejściowy")],
+                [sg.Image(key="-INPUT_IMG-")],
+            ],
+        ),
+        sg.Column(
+            [
+                [sg.Text("Sinogram")],
+                [sg.Image(key="-SINOGRAM-")],
+            ],
+        ),
+        sg.Column(
+            [
+                [sg.Text("Obraz wyjściowy")],
+                [sg.Image(key="-OUTPUT_IMG-")],
+            ],
+        )],
         [
             sg.Text("Image File"),
             sg.Input(size=(25, 1), key="-FILE-"),
