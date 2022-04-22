@@ -17,13 +17,30 @@ file_types = [("JPEG (*.jpg)", "*.jpg"),
 def main():
     scanner = Scanner()
     layout = [
-        [sg.Image(key="-IMAGE-")],
+        [sg.Text("Obraz wejściowy")],
+        [sg.Image(key="-INPUT_IMG-")],
+        [sg.Text("Sinogram")],
+        [sg.Image(key="-SINOGRAM-")],
+        [sg.Text("Obraz wyjściowy")],
+        [sg.Image(key="-OUTPUT_IMG-")],
         [
             sg.Text("Image File"),
             sg.Input(size=(25, 1), key="-FILE-"),
             sg.FileBrowse(file_types=file_types),
             sg.Button("Load Image"),
         ],
+        [
+            sg.Text("Liczba detektorów:"),
+            sg.Input(size=(25, 1), key="-DETECTORS_COUNT-", default_text='180'),
+        ],
+        [
+            sg.Text("Liczba skanów:"),
+            sg.Input(size=(25, 1), key="-SCANS_COUNT-", default_text='90'),
+        ],
+        [
+            sg.Text("Rozwartośc układu [stopnie]:"),
+            sg.Input(size=(25, 1), key="-DETECTORS_SPAN-", default_text='180'),
+        ]
     ]
     window = sg.Window("Image Viewer", layout)
     while True:
@@ -33,15 +50,33 @@ def main():
         if event == "Load Image":
             filename = values["-FILE-"]
             if os.path.exists(filename):
-                scanner.load(values["-FILE-"])
+                image = Image.open(filename)
+                image.thumbnail((400, 400))
+                bio = io.BytesIO()
+                image.save(bio, format="PNG")
+                window["-INPUT_IMG-"].update(data=bio.getvalue())
+
+                scanner.set_config(scans_count=int(values['-SCANS_COUNT-']),
+                                   detectors_count=int(values['-DETECTORS_COUNT-']),
+                                   detectors_span=int(values['-DETECTORS_SPAN-']))
+                scanner.load(filename)
                 scanner.create_sinogram()
                 # image = Image.open(values["-FILE-"])
                 myarray = numpy.array(scanner.sinogram) * 255
                 image = Image.fromarray(numpy.uint8(myarray))
-                # image.thumbnail((400, 400))
+                image.thumbnail((400, 400))
                 bio = io.BytesIO()
                 image.save(bio, format="PNG")
-                window["-IMAGE-"].update(data=bio.getvalue())
+                window["-SINOGRAM-"].update(data=bio.getvalue())
+
+                scanner.create_output_img()
+                myarray = numpy.array(scanner.output_img) * 255
+                image = Image.fromarray(numpy.uint8(myarray))
+                image.thumbnail((400, 400))
+                bio = io.BytesIO()
+                image.save(bio, format="PNG")
+                window["-OUTPUT_IMG-"].update(data=bio.getvalue())
+
     window.close()
 if __name__ == "__main__":
     main()
