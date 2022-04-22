@@ -4,7 +4,6 @@ import numpy as np
 
 class Scanner:
     def __init__(self):
-        self.filename = ''
         self.scans_count = 90
         self.detectors_count = 180
         self.detectors_span = 180
@@ -36,9 +35,11 @@ class Scanner:
 
         self.angle_step = 2.0 * math.pi / self.scans_count
 
-    def load(self, filename):
-        self.filename = filename
-        self.original_img = io.imread(filename, as_gray=True)
+    def load(self, filename=None, image=None):
+        if filename is not None:
+            self.original_img = io.imread(filename, as_gray=True)
+        else:
+            self.original_img = image
         if self.original_img.shape[0] == self.original_img.shape[1]:
             self.work_img = np.array(self.original_img)
         elif self.original_img.shape[0] > self.original_img.shape[1]:
