@@ -15,11 +15,14 @@ class Scanner:
         self.center = None
         self.radius = None
         self.angle_step = None
+        self.scan_steps = self.scans_count
         self.set_config()
 
-    def set_config(self, scans_count=None, detectors_count=None, detectors_span=None):
+    def set_config(self, scans_count=None, detectors_count=None, detectors_span=None, scan_steps=None):
         if scans_count is not None:
             self.scans_count = scans_count
+        if scan_steps is not None:
+            self.scan_steps = scan_steps
         if detectors_count is not None:
             self.detectors_count = detectors_count
         if detectors_span is not None:
@@ -27,7 +30,7 @@ class Scanner:
             self.detectors_span = float(self.detectors_span) / 360.0 * 2.0 * math.pi
 
         self.sinogram = []
-        for i in range(self.scans_count):
+        for i in range(self.scan_steps):
             self.sinogram.append([])
 
         self.angle_step = 2.0 * math.pi / self.scans_count
@@ -40,7 +43,7 @@ class Scanner:
         self.radius = self.center[0] - 1
 
     def create_sinogram(self):
-        for step in range(self.scans_count):
+        for step in range(self.scan_steps):
             angle = step * self.angle_step
             emitter_loc_x = int(self.radius * math.cos(angle))
             emitter_loc_x += self.center[0]
@@ -72,7 +75,7 @@ class Scanner:
     def create_output_img(self):
         self.output_img = np.zeros(self.original_img.shape)
         global_max = 0
-        for step in range(self.scans_count):
+        for step in range(self.scan_steps):
             angle = step * self.angle_step
             emitter_loc_x = int(self.radius * math.cos(angle))
             emitter_loc_x += self.center[0]
@@ -98,3 +101,4 @@ class Scanner:
         for i in range(self.output_img.shape[0]):
             for j in range(self.output_img.shape[1]):
                 self.output_img[i][j] /= global_max
+
