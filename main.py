@@ -12,7 +12,7 @@ sinogram = []
 for i in range(scans_count):
     sinogram.append([])
 
-img = io.imread('tomograf-zdjecia/Kropka.jpg', as_gray=True)
+img = io.imread('tomograf-zdjecia/Kropka.JPG', as_gray=True)
 
 center = (int(img.shape[0]/2), int(img.shape[1]/2))
 radius = center[0] - 1
@@ -27,7 +27,6 @@ for step in range(scans_count):
     emitter_loc_y = center[1] - emitter_loc_y
     emitter_loc = (emitter_loc_x, emitter_loc_y)
 
-    detector_locs = []
     scan_max = 0
     for i in range(detectors_count):
         detector_loc_x = int(radius * math.cos(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
@@ -35,7 +34,6 @@ for step in range(scans_count):
         detector_loc_y = int(radius * math.sin(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
         detector_loc_y = center[1] - detector_loc_y
         detector_loc = (detector_loc_x, detector_loc_y)
-        detector_locs.append(detector_loc)
 
         line_nd = draw.line_nd(emitter_loc, detector_loc, endpoint=True)
         value = 0
@@ -62,7 +60,6 @@ for step in range(scans_count):
     emitter_loc_y = center[1] - emitter_loc_y
     emitter_loc = (emitter_loc_x, emitter_loc_y)
 
-    detector_locs = []
     scan_max = 0
     for i in range(detectors_count):
         detector_loc_x = int(radius * math.cos(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
@@ -70,7 +67,6 @@ for step in range(scans_count):
         detector_loc_y = int(radius * math.sin(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
         detector_loc_y = center[1] - detector_loc_y
         detector_loc = (detector_loc_x, detector_loc_y)
-        detector_locs.append(detector_loc)
 
         line_nd = draw.line_nd(emitter_loc, detector_loc, endpoint=True)
         value = sinogram[step][i]
