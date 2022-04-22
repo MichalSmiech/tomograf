@@ -1,82 +1,124 @@
-from skimage import io, draw
-import math
-import numpy as np
+# import PySimpleGUI as sg
+#
+# filename = sg.popup_get_file('Enter the file you wish to process')
+#
+#
+# sg.popup('You entered', filename)
 
-scans_count = 90
-detectors_count = 180
-detectors_span = 180
+import io
+import os
+import numpy
+import PySimpleGUI as sg
+from scanner import Scanner
+from PIL import Image
+from matplotlib import cm
+file_types = [("JPEG (*.jpg)", "*.jpg"),
+              ("All files (*.*)", "*.*")]
+def main():
+    scanner = Scanner()
+    layout = [
+        [sg.Column(
+            [
+                [sg.Text("Obraz wejściowy")],
+                [sg.Image(key="-INPUT_IMG-")],
+            ],
+        ),
+        sg.Column(
+            [
+                [sg.Text("Sinogram")],
+                [sg.Image(key="-SINOGRAM-")],
+            ],
+        ),
+        sg.Column(
+            [
+                [sg.Text("Obraz wyjściowy")],
+                [sg.Image(key="-OUTPUT_IMG-")],
+            ],
+        )],
+        [
+            sg.Text("Image File"),
+            sg.Input(size=(25, 1), key="-FILE-"),
+            sg.FileBrowse(file_types=file_types),
+            sg.Button("Load Image"),
+        ],
+        [
+            sg.Text("Liczba detektorów:"),
+            sg.Input(size=(25, 1), key="-DETECTORS_COUNT-", default_text='180'),
+        ],
+        [
+            sg.Text("Liczba skanów:"),
+            sg.Input(size=(25, 1), key="-SCANS_COUNT-", default_text='90'),
+        ],
+        [
+            sg.Text("Rozwartośc układu [stopnie]:"),
+            sg.Input(size=(25, 1), key="-DETECTORS_SPAN-", default_text='180'),
+        ],
+        [
+            sg.Text("Postępu obrotu emitera"),
+            sg.Slider(orientation='horizontal', key='-SLIDER-', range=(1, 90), enable_events=True),
+            sg.Button("Load"),
+        ],
+    ]
+    window = sg.Window("Image Viewer", layout)
+    while True:
+        event, values = window.read()
+        if event == "Exit" or event == sg.WIN_CLOSED:
+            break
+        if event == "Load Image":
+            filename = values["-FILE-"]
+            if os.path.exists(filename):
+                image = Image.open(filename)
+                image.thumbnail((400, 400))
+                bio = io.BytesIO()
+                image.save(bio, format="PNG")
+                window["-INPUT_IMG-"].update(data=bio.getvalue())
 
-detectors_span = float(detectors_span) / 360.0 * 2.0 * math.pi
-sinogram = []
+                scanner.set_config(scans_count=int(values['-SCANS_COUNT-']),
+                                   detectors_count=int(values['-DETECTORS_COUNT-']),
+                                   detectors_span=int(values['-DETECTORS_SPAN-']),
+                                   scan_steps=int(values['-SCANS_COUNT-']))
+                window.Element("-SLIDER-").Update(range=(1, scanner.scans_count))
+                scanner.load(filename)
+                scanner.create_sinogram()
+                # image = Image.open(values["-FILE-"])
+                myarray = numpy.array(scanner.sinogram) * 255
+                image = Image.fromarray(numpy.uint8(myarray))
+                image.thumbnail((400, 400))
+                bio = io.BytesIO()
+                image.save(bio, format="PNG")
+                window["-SINOGRAM-"].update(data=bio.getvalue())
 
-for i in range(scans_count):
-    sinogram.append([])
+                scanner.create_output_img()
+                myarray = numpy.array(scanner.output_img) * 255
+                image = Image.fromarray(numpy.uint8(myarray))
+                image.thumbnail((400, 400))
+                bio = io.BytesIO()
+                image.save(bio, format="PNG")
+                window["-OUTPUT_IMG-"].update(data=bio.getvalue())
+        if event == 'Load':
+            filename = values["-FILE-"]
+            scan_steps = int(values["-SLIDER-"])
+            scanner.set_config(scan_steps=scan_steps)
+            window.Element("-SLIDER-").Update(range=(1, scanner.scans_count))
+            scanner.load(filename)
+            scanner.create_sinogram()
+            # image = Image.open(values["-FILE-"])
+            myarray = numpy.array(scanner.sinogram) * 255
+            image = Image.fromarray(numpy.uint8(myarray))
+            image.thumbnail((400, 400))
+            bio = io.BytesIO()
+            image.save(bio, format="PNG")
+            window["-SINOGRAM-"].update(data=bio.getvalue())
 
-img = io.imread('tomograf-zdjecia/Kropka.JPG', as_gray=True)
-
-center = (int(img.shape[0]/2), int(img.shape[1]/2))
-radius = center[0] - 1
-
-angle_step = 2.0 * math.pi / scans_count
-
-for step in range(scans_count):
-    angle = step * angle_step
-    emitter_loc_x = int(radius * math.cos(angle))
-    emitter_loc_x += center[0]
-    emitter_loc_y = int(radius * math.sin(angle))
-    emitter_loc_y = center[1] - emitter_loc_y
-    emitter_loc = (emitter_loc_x, emitter_loc_y)
-
-    scan_max = 0
-    for i in range(detectors_count):
-        detector_loc_x = int(radius * math.cos(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
-        detector_loc_x += center[0]
-        detector_loc_y = int(radius * math.sin(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
-        detector_loc_y = center[1] - detector_loc_y
-        detector_loc = (detector_loc_x, detector_loc_y)
-
-        line_nd = draw.line_nd(emitter_loc, detector_loc, endpoint=True)
-        value = 0
-        for j in range(len(line_nd[0])):
-            value += img[line_nd[0][j]][line_nd[1][j]]
-        value = value / len(line_nd[0])
-        sinogram[step].append(value)
-        scan_max = max(value, scan_max)
-
-    for i in range(detectors_count):
-        sinogram[step][i] /= scan_max
-
-io.imsave('sinogram.jpg', np.array(sinogram))
-
-output_img = np.zeros(img.shape)
-
-global_max = 0
-
-for step in range(scans_count):
-    angle = step * angle_step
-    emitter_loc_x = int(radius * math.cos(angle))
-    emitter_loc_x += center[0]
-    emitter_loc_y = int(radius * math.sin(angle))
-    emitter_loc_y = center[1] - emitter_loc_y
-    emitter_loc = (emitter_loc_x, emitter_loc_y)
-
-    scan_max = 0
-    for i in range(detectors_count):
-        detector_loc_x = int(radius * math.cos(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
-        detector_loc_x += center[0]
-        detector_loc_y = int(radius * math.sin(angle + math.pi - detectors_span / 2 + i * detectors_span / (detectors_count - 1)))
-        detector_loc_y = center[1] - detector_loc_y
-        detector_loc = (detector_loc_x, detector_loc_y)
-
-        line_nd = draw.line_nd(emitter_loc, detector_loc, endpoint=True)
-        value = sinogram[step][i]
-        for j in range(len(line_nd[0])):
-            output_img[line_nd[0][j]][line_nd[1][j]] += value
-            global_max = max(output_img[line_nd[0][j]][line_nd[1][j]], global_max)
-
-for i in range(output_img.shape[0]):
-    for j in range(output_img.shape[1]):
-        output_img[i][j] /= global_max
+            scanner.create_output_img()
+            myarray = numpy.array(scanner.output_img) * 255
+            image = Image.fromarray(numpy.uint8(myarray))
+            image.thumbnail((400, 400))
+            bio = io.BytesIO()
+            image.save(bio, format="PNG")
+            window["-OUTPUT_IMG-"].update(data=bio.getvalue())
 
 
-io.imsave('output.jpg', output_img)
+    window.close()
+if __name__ == "__main__":
+    main()

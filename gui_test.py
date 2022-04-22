@@ -75,7 +75,8 @@ def main():
 
                 scanner.set_config(scans_count=int(values['-SCANS_COUNT-']),
                                    detectors_count=int(values['-DETECTORS_COUNT-']),
-                                   detectors_span=int(values['-DETECTORS_SPAN-']))
+                                   detectors_span=int(values['-DETECTORS_SPAN-']),
+                                   scan_steps=int(values['-SCANS_COUNT-']))
                 window.Element("-SLIDER-").Update(range=(1, scanner.scans_count))
                 scanner.load(filename)
                 scanner.create_sinogram()
