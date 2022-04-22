@@ -10,6 +10,7 @@ class Scanner:
         self.detectors_span = 180
         self.detectors_span = float(self.detectors_span) / 360.0 * 2.0 * math.pi
         self.original_img = None
+        self.work_img = None
         self.output_img = None
         self.sinogram = []
         self.center = None
@@ -38,8 +39,19 @@ class Scanner:
     def load(self, filename):
         self.filename = filename
         self.original_img = io.imread(filename, as_gray=True)
-
-        self.center = (int(self.original_img.shape[0]/2), int(self.original_img.shape[1]/2))
+        if self.original_img.shape[0] == self.original_img.shape[1]:
+            self.work_img = np.array(self.original_img)
+        elif self.original_img.shape[0] > self.original_img.shape[1]:
+            shift = int(math.ceil((self.original_img.shape[0] - self.original_img.shape[1]) / 2))
+            self.work_img = np.concatenate((np.zeros((self.original_img.shape[0], shift)),
+                                            self.original_img,
+                                            np.zeros((self.original_img.shape[0], shift))), axis=1)
+        else:
+            shift = int(math.ceil((self.original_img.shape[1] - self.original_img.shape[0]) / 2))
+            self.work_img = np.concatenate((np.zeros((shift, self.original_img.shape[1])),
+                                            self.original_img,
+                                            np.zeros((shift, self.original_img.shape[1]))), axis=0)
+        self.center = (int(self.work_img.shape[0]/2), int(self.work_img.shape[1]/2))
         self.radius = self.center[0] - 1
 
     def create_sinogram(self):
@@ -64,7 +76,7 @@ class Scanner:
                 line_nd = draw.line_nd(emitter_loc, detector_loc, endpoint=True)
                 value = 0
                 for j in range(len(line_nd[0])):
-                    value += self.original_img[line_nd[0][j]][line_nd[1][j]]
+                    value += self.work_img[line_nd[0][j]][line_nd[1][j]]
                 value = value / len(line_nd[0])
                 self.sinogram[step].append(value)
                 scan_max_value = max(value, scan_max_value)
@@ -73,7 +85,7 @@ class Scanner:
                 self.sinogram[step][i] /= scan_max_value
 
     def create_output_img(self):
-        self.output_img = np.zeros(self.original_img.shape)
+        self.output_img = np.zeros(self.work_img.shape)
         global_max = 0
         for step in range(self.scan_steps):
             angle = step * self.angle_step
@@ -101,4 +113,11 @@ class Scanner:
         for i in range(self.output_img.shape[0]):
             for j in range(self.output_img.shape[1]):
                 self.output_img[i][j] /= global_max
+
+        if self.original_img.shape[0] > self.original_img.shape[1]:
+            shift = int(math.ceil((self.original_img.shape[0] - self.original_img.shape[1]) / 2))
+            self.output_img = self.output_img[:,shift:shift + self.original_img.shape[1]]
+        elif self.original_img.shape[0] < self.original_img.shape[1]:
+            shift = int(math.ceil((self.original_img.shape[1] - self.original_img.shape[0]) / 2))
+            self.output_img = self.output_img[shift:shift + self.original_img.shape[0],:]
 
