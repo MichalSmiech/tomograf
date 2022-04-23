@@ -1,19 +1,11 @@
-# import PySimpleGUI as sg
-#
-# filename = sg.popup_get_file('Enter the file you wish to process')
-#
-#
-# sg.popup('You entered', filename)
-
 import io
-import skimage
 import os
 import numpy
 import PySimpleGUI as sg
 from scanner import Scanner
 from PIL import Image
 from dicom import DicomFile
-from matplotlib import cm
+from datetime import datetime
 file_types = [("JPEG (*.jpg)", "*.jpg"),
               ("All files (*.*)", "*.*")]
 dicom_file_types = [("DICOM (*.dcm)", "*.dcm"),
@@ -57,14 +49,14 @@ def main():
         ],
         [
             sg.Text("Liczba skanów:"),
-            sg.Input(size=(25, 1), key="-SCANS_COUNT-", default_text='90'),
+            sg.Input(size=(25, 1), key="-SCANS_COUNT-", default_text='20'),
         ],
         [
             sg.Text("Rozwartośc układu [stopnie]:"),
             sg.Input(size=(25, 1), key="-DETECTORS_SPAN-", default_text='180'),
         ],
         [
-            sg.Text("Postępu obrotu emitera"),
+            sg.Text("Postęp obrotu emitera"),
             sg.Slider(orientation='horizontal', key='-SLIDER-', range=(1, 90), enable_events=True),
             sg.Button("Load"),
         ],
@@ -81,6 +73,12 @@ def main():
             sg.Input(size=(60, 1), key="-COMMENTS-"),
         ],
         [
+            sg.Text("Data:"),
+            sg.In(key='-INCAL1-', size=(25, 1)),
+            sg.Col([[sg.CalendarButton('Change date', target='-INCAL1-', pad=None, key='-DATE-', format=('%d-%m-%Y'))]])],
+        [
+            sg.Text("Nazwa pliku:"),
+            sg.Input(size=(25, 1), key="-DICOM_OUTPUT-", default_text="plik.dcm"),
             sg.Button("Save Dicom"),
         ]
     ]
@@ -121,11 +119,9 @@ def main():
                 image.save(bio, format="PNG")
                 window["-OUTPUT_IMG-"].update(data=bio.getvalue())
         if event == 'Load':
-            # filename = values["-IMAGE_FILE-"]
             scan_steps = int(values["-SLIDER-"])
             scanner.set_config(scan_steps=scan_steps)
             window.Element("-SLIDER-").Update(range=(1, scanner.scans_count))
-            # scanner.load(filename=filename)
             scanner.create_sinogram()
             myarray = numpy.array(scanner.sinogram) * 255
             image = Image.fromarray(numpy.uint8(myarray))
@@ -149,6 +145,7 @@ def main():
                 window["-NAME-"].update(dicom_file.given_name)
                 window["-SURNAME-"].update(dicom_file.family_name)
                 window["-COMMENTS-"].update(dicom_file.comments)
+                window["-INCAL1-"].update(dicom_file.timestamp.strftime('%d-%m-%Y'))
                 myarray = numpy.array(dicom_file.image)
                 image = Image.fromarray(numpy.uint8(myarray))
                 image.thumbnail((400, 400))
@@ -179,6 +176,14 @@ def main():
                 bio = io.BytesIO()
                 image.save(bio, format="PNG")
                 window["-OUTPUT_IMG-"].update(data=bio.getvalue())
+        if event == "Save Dicom":
+            name = values['-NAME-']
+            surname = values['-SURNAME-']
+            comments = values['-COMMENTS-']
+            timestamp = datetime.strptime(values['-INCAL1-'], '%d-%m-%Y')
+            dicom_output = values['-DICOM_OUTPUT-']
+
+            DicomFile().save(dicom_output, surname, name, comments, timestamp=timestamp, image=numpy.uint8(numpy.array(scanner.output_img) * 255))
 
 
     window.close()

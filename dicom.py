@@ -1,5 +1,9 @@
 from pydicom import dcmread
+import pydicom
 import datetime
+from pydicom.dataset import FileDataset, FileMetaDataset
+from pydicom.uid import UID
+import pydicom._storage_sopclass_uids
 
 class DicomFile:
     def __init__(self):
@@ -16,44 +20,61 @@ class DicomFile:
         self.family_name = ds.PatientName.family_name
         self.given_name = ds.PatientName.given_name
         self.comments = ds.ImageComments
-        self.timestamp = ds.timestamp
+        self.timestamp = datetime.datetime.fromtimestamp(ds.timestamp)
         self.image = ds.pixel_array
 
+    def save(self,
+             filepath,
+             family_name,
+             given_name,
+             comments,
+             timestamp,
+             image):
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = UID('1.2.840.10008.5.1.4.1.1.2')
+        file_meta.MediaStorageSOPInstanceUID = UID("1.2.3")
+        file_meta.ImplementationClassUID = UID("1.2.3.4")
+        file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2.1")
+        file_meta.FileMetaInformationGroupLength = 206
+
+        ds = FileDataset(filepath, {}, file_meta=file_meta, preamble=b"\0" * 128)
+
+        ds.PatientName = f"{family_name}^{given_name}"
+        ds.ImageComments = comments
+        ds.timestamp = timestamp.timestamp()
+        ds.PixelData = image.tobytes()
+        ds.Rows, ds.Columns = image.shape
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.HighBit = 7
+        ds.SamplesPerPixel = 1
+        ds.PixelRepresentation = 0
+        ds.PhotometricInterpretation = 'MONOCHROME2'
+        ds.ImagesInAcquisition = "1"
+        ds.InstanceNumber = 1
+        ds.ImageType = r"ORIGINAL\PRIMARY\AXIAL"
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
 
 
+        ds.is_little_endian = True
+        ds.is_implicit_VR = False
 
+        ds.SOPClassUID = pydicom._storage_sopclass_uids.MRImageStorage
+        ds.PatientID = "123456"
 
+        ds.Modality = "CT"
+        ds.SeriesInstanceUID = pydicom.uid.generate_uid()
+        ds.StudyInstanceUID = pydicom.uid.generate_uid()
+        ds.FrameOfReferenceUID = pydicom.uid.generate_uid()
 
+        ds.read_little_endian = True
+        ds.read_encoding = 'iso8859'
 
+        dt = timestamp
+        ds.ContentDate = dt.strftime('%Y%m%d')
+        timeStr = dt.strftime('%H%M%S.%f')
+        ds.ContentTime = timeStr
 
-# def read_dicom(path):
-#     import matplotlib.pyplot as plt
-#     from pydicom import dcmread
-#     from pydicom.data import get_testdata_file
-#
-#     # fpath = get_testdata_file(path)
-#     ds = dcmread(path)
-#
-#     # Normal mode:
-#     print()
-#     # print(f"File path........: {fpath}")
-#     print(f"SOP Class........: {ds.SOPClassUID} ({ds.SOPClassUID.name})")
-#     print()
-#
-#     pat_name = ds.PatientName
-#     display_name = pat_name.family_name + ", " + pat_name.given_name
-#     print(f"Patient's Name...: {display_name}")
-#     print(f"Patient ID.......: {ds.PatientID}")
-#     print(f"Modality.........: {ds.Modality}")
-#     # print(f"Study Date.......: {ds.StudyDate}")
-#     print(f"Image size.......: {ds.Rows} x {ds.Columns}")
-#     # print(f"Pixel Spacing....: {ds.PixelSpacing}")
-#
-#     # use .get() if not sure the item exists, and want a default value if missing
-#     print(f"Slice location...: {ds.get('SliceLocation', '(missing)')}")
-#
-#     # plot the image using matplotlib
-#     plt.imshow(ds.pixel_array, cmap=plt.cm.gray)
-#     plt.show()
-#
-# read_dicom('tomograf-dicom/Kropka.dcm')
+        pydicom.dataset.validate_file_meta(ds.file_meta, enforce_standard=True)
+        ds.save_as(filepath)
